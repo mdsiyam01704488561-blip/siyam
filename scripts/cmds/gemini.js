@@ -1,116 +1,95 @@
 const axios = require("axios");
 
 const baseApiUrl = async () => {
-  const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-  return base.data.mahmud
+        const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
+        return base.data.mahmud;
 };
-
-/**
-* @author MahMUD
-* @author: do not delete it
-*/
 
 module.exports = {
-  config: {
-    name: "gemini",
-    version: "1.7",
-    author: "MahMUD",
-    countDown: 5,
-    role: 0,
-    category: "ai",
-    guide: {
-      en: "{pn} message | reply with an image",
-    },
-  },
+        config: {
+                name: "gemini",
+                version: "1.7",
+                author: "MahMUD",
+                countDown: 5,
+                role: 0,
+                category: "ai",
+                guide: {
+                        bn: '   {pn} <প্রশ্ন>: যেকোনো কিছু জিজ্ঞাসা করুন\n   অথবা কোনো ছবিতে রিপ্লাই দিয়ে প্রশ্ন করুন',
+                        en: '   {pn} <prompt>: Ask anything to AI\n   Or reply to an image with a prompt',
+                        vi: '   {pn} <câu hỏi>: Hỏi bất cứ điều gì\n   Hoặc phản hồi một hình ảnh'
+                }
+        },
 
-  onStart: async function ({ api, args, event }) {
-    const apiUrl = `${await baseApiUrl()}/api/gemini`;
-    const prompt = args.join(" ");
+        langs: {
+                bn: {
+                        noPrompt: "⚠️ বেবি, কিছু তো জিজ্ঞাসা করো! উদাহরণ: {pn} তুমি কে?",
+                        noResponse: "× এআই থেকে কোনো উত্তর পাওয়া যায়নি।",
+                        error: "× সমস্যা হয়েছে: %1। প্রয়োজনে Contact MahMUD।"
+                },
+                en: {
+                        noPrompt: "⚠️ Baby, please provide a question! Example: {pn} Who are you?",
+                        noResponse: "× No response received from AI.",
+                        error: "× API error: %1. Contact MahMUD for help."
+                },
+                vi: {
+                        noPrompt: "⚠️ Cưng ơi, vui lòng nhập câu hỏi! Ví dụ: {pn} Bạn là ai?",
+                        noResponse: "× Không nhận được phản hồi từ AI.",
+                        error: "× Lỗi API: %1. Liên hệ MahMUD để được trợ giúp."
+                }
+        },
 
-    if (!prompt) {
-      return api.sendMessage(
-        "Please provide a question to answer.\n\nExample:\n{pn} What is AI?",
-        event.threadID,
-        event.messageID
-      );
-    }
+        onStart: async function ({ api, event, args, message, getLang }) {
+                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
+                if (this.config.author !== authorName) {
+                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
+                }
 
-    let requestBody = { prompt };
+                const prompt = args.join(" ");
+                if (!prompt) return message.reply(getLang("noPrompt"));
 
-    if (event.type === "message_reply" && event.messageReply.attachments.length > 0) {
-      const attachment = event.messageReply.attachments[0];
-      if (attachment.type === "photo") {
-        requestBody.imageUrl = attachment.url;
-      }
-    }
+                let requestBody = { prompt };
+                if (event.type === "message_reply" && event.messageReply.attachments.length > 0) {
+                        const attachment = event.messageReply.attachments[0];
+                        if (attachment.type === "photo") {
+                                requestBody.imageUrl = attachment.url;
+                        }
+                }
 
-    try {
-      const response = await axios.post(apiUrl, requestBody, {
-        headers: { 
-          "Content-Type": "application/json",
-          "author": module.exports.config.author
+                return await handleGemini(api, event, requestBody, this.config.name, getLang);
+        },
+
+        onReply: async function ({ api, event, Reply, args, getLang }) {
+                if (Reply.author !== event.senderID) return;
+                const prompt = args.join(" ");
+                if (!prompt) return;
+                return await handleGemini(api, event, { prompt }, this.config.name, getLang);
         }
-      });
-
-      if (response.data.error) {
-        return api.sendMessage(response.data.error, event.threadID, event.messageID);
-      }
-
-      const replyText = response.data.response || "No response received.";
-
-      api.sendMessage({ body: replyText }, event.threadID, (error, info) => {
-        if (!error) {
-          global.GoatBot.onReply.set(info.messageID, {
-            commandName: this.config.name,
-            type: "reply",
-            messageID: info.messageID,
-            author: event.senderID,
-            link: replyText,
-          });
-        }
-      }, event.messageID);
-    } catch (error) {
-      console.error("Error:", error);
-      api.sendMessage("An error occurred. Please try again later.", event.threadID, event.messageID);
-    }
-  },
-
-  onReply: async function ({ api, args, event, Reply }) {
-    if (Reply.author !== event.senderID) return;
-
-    const apiUrl = `${await baseApiUrl()}/api/gemini`;
-    const prompt = args.join(" ");
-
-    if (!prompt) return;
-
-    try {
-      const response = await axios.post(apiUrl, { prompt }, {
-        headers: { 
-          "Content-Type": "application/json",
-          "author": module.exports.config.author
-        }
-      });
-
-      if (response.data.error) {
-        return api.sendMessage(response.data.error, event.threadID, event.messageID);
-      }
-
-      const replyText = response.data.response || "No response received.";
-
-      api.sendMessage({ body: replyText }, event.threadID, (error, info) => {
-        if (!error) {
-          global.GoatBot.onReply.set(info.messageID, {
-            commandName: this.config.name,
-            type: "reply",
-            messageID: info.messageID,
-            author: event.senderID,
-            link: replyText,
-          });
-        }
-      }, event.messageID);
-    } catch (error) {
-      console.error("Error:", error);
-      api.sendMessage("error janu, Please try again later 🥹", event.threadID, event.messageID);
-    }
-  }
 };
+
+async function handleGemini(api, event, requestBody, commandName, getLang) {
+        try {
+                const baseUrl = await baseApiUrl();
+                const response = await axios.post(`${baseUrl}/api/gemini`, requestBody, {
+                        headers: { 
+                                "Content-Type": "application/json",
+                                "author": "MahMUD"
+                        }
+                });
+
+                const replyText = response.data.response || getLang("noResponse");
+
+                api.sendMessage(replyText, event.threadID, (error, info) => {
+                        if (!error) {
+                                global.GoatBot.onReply.set(info.messageID, {
+                                        commandName: commandName,
+                                        author: event.senderID,
+                                        messageID: info.messageID,
+                                        type: "reply"
+                                });
+                        }
+                }, event.messageID);
+
+        } catch (err) {
+                api.sendMessage(getLang("error", err.message), event.threadID, event.messageID);
+        }
+}
