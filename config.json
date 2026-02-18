@@ -24,7 +24,7 @@
     "whiteListIds": [],
     "notes": "if you enable this feature, only the ids in the whiteListIds section can use the bot"
   },
-  "nickNameBot": "Your Hinata Baby",
+  "nickNameBot": "✦─────꯭─⃝‌‌𝕊𝔸𝔻𝕀𝔸 𝔹𝕆𝕋 ✡️────✦",
   "prefix": "!",
   "database": {
     "type": "sqlite",
